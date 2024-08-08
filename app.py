@@ -420,7 +420,12 @@ def plot_financial_data(financial_data):
 
     for i, company in enumerate(df['회사'].unique()):
         company_data = df[df['회사'] == company]
-        plt.bar(index + i * bar_width, company_data['지표값'], bar_width, label=company)
+
+        # Ensure that the length of x and y values match
+        x_values = index[:len(company_data)]  # Match the length of the company_data
+        y_values = company_data['지표값'].values
+
+        plt.bar(x_values + i * bar_width, y_values, bar_width, label=company)
 
     plt.ylabel('지표값')
     plt.xlabel('지표명')
@@ -439,5 +444,6 @@ def plot_financial_data(financial_data):
     img_base64 = base64.b64encode(img.getvalue()).decode('utf-8')
     
     return img_base64
+
 if __name__ == '__main__':
     app.run(debug=True)
