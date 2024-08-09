@@ -3,15 +3,20 @@ matplotlib.use('Agg')
 
 import requests
 import openai
+from openai import OpenAI
 import zipfile
 import io
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 import pandas as pd
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, render_template_string
 import base64
 import numpy as np
 from matplotlib import font_manager, rc
+from threading import Thread
+from bs4 import BeautifulSoup
+import re
+import time
 
 rc('font', family='AppleGothic')
 plt.rcParams['axes.unicode_minus'] = False
@@ -24,6 +29,12 @@ dart_api_key = '0e5ab0c2d0153186cb4aa21520923ad730404cd8'
 openai.api_key = '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'
 NEWS_API_KEY = '1ccc7972e0d9465fa31a5eaf02ee236e'
 NEWS_API_URL = 'https://newsapi.org/v2/everything'
+
+# OpenAI 클라이언트 설정
+client = OpenAI(api_key=openai.api_key)
+
+# 글로벌 변수로 기사 저장
+articles_data = []
 
 # 사용자 맞춤형 키워드
 categories = [
@@ -59,7 +70,6 @@ def call_open_dart_api_json(corp_code=None, bgn_de=None, end_de=None, last_reprt
 
 def simplify_and_translate(text):
     def split_text(text, max_tokens=3000):
-        # 대략적인 단어 수를 기반으로 텍스트를 나누는 간단한 방법
         words = text.split()
         chunks = [words[i:i + max_tokens] for i in range(0, len(words), max_tokens)]
         return [' '.join(chunk) for chunk in chunks]
@@ -67,14 +77,14 @@ def simplify_and_translate(text):
     prompts = split_text(text)
     simplified_texts = []
     for prompt in prompts:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that simplifies complex financial contents."},
                 {"role": "user", "content": f"다음 내용을 금융 지식이 적은 사람도 이해할 수 있게 간단하게 설명해주세요:\n\n{prompt}\n\n설명은 쉬운 용어를 사용하고, 전문 용어는 풀어서 설명해주세요."}
             ]
         )
-        simplified_texts.append(response.choices[0].message['content'].strip())
+        simplified_texts.append(response.choices[0].message.content.strip())
     
     return ' '.join(simplified_texts)
 
@@ -82,16 +92,103 @@ def simplify_and_translate(text):
 @app.route('/')
 def index():
     html_content = '''
-    <h1>Welcome to the Financial Info App</h1>
-    <ul>
-        <li><a href="/search">Search for Public Filings</a></li>
-        <li><a href="/stock">Stock Exchange Decisions</a></li>
-        <li><a href="/preferences">Set Your Preferences</a></li>
-        <li><a href="/financial-indicators">View Financial Indicators</a></li>
-        <li><a href="/financial-statements">View Financial Statements</a></li>
-    </ul>
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Financial Info App</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            header {
+                background-color: #333;
+                color: white;
+                padding: 10px 0;
+                text-align: center;
+            }
+            nav {
+                margin: 10px;
+                text-align: center;
+            }
+            nav a {
+                margin: 0 15px;
+                text-decoration: none;
+                color: #333;
+                font-weight: bold;
+            }
+            footer {
+                background-color: #333;
+                color: white;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+            li {
+                margin: 10px 0;
+            }
+            li a {
+                text-decoration: none;
+                color: #0066cc;
+            }
+            li a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Financial Info App</h1>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+            <h1>Welcome to the Financial Info App</h1>
+            <ul>
+                <li><a href="/search">Search for Public Filings</a></li>
+                <li><a href="/stock">Stock Exchange Decisions</a></li>
+                <li><a href="/preferences">Set Your Preferences</a></li>
+                <li><a href="/financial-indicators">View Financial Indicators</a></li>
+                <li><a href="/financial-statements">View Financial Statements</a></li>
+                <li><a href="/news">View Financial News</a></li>
+            </ul>
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
+    </html>
     '''
     return html_content
+
 
 @app.route('/search')
 def search():
@@ -114,8 +211,89 @@ def search():
             """
             simplified_text = simplify_and_translate(detailed_info)
             simplified_items.append(simplified_text)
+
+    html_content = '''
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Public Filings</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            header {
+                background-color: #333;
+                color: white;
+                padding: 10px 0;
+                text-align: center;
+            }
+            nav {
+                margin: 10px;
+                text-align: center;
+            }
+            nav a {
+                margin: 0 15px;
+                text-decoration: none;
+                color: #333;
+                font-weight: bold;
+            }
+            footer {
+                background-color: #333;
+                color: white;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+            li {
+                margin: 10px 0;
+            }
+            li a {
+                text-decoration: none;
+                color: #0066cc;
+            }
+            li a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Financial Info App</h1>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+            <h1>Public Filings</h1>'''
     
-    html_content = '<h1>Public Filings</h1>'
     if simplified_items:
         html_content += '<ul>'
         for item in simplified_items:
@@ -124,7 +302,17 @@ def search():
     else:
         html_content += '<p>No data found or error occurred.</p>'
     
+    html_content += '''
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
+    </html>
+    '''
+    
     return html_content
+
 
 @app.route('/stock', methods=['GET', 'POST'])
 def stock():
@@ -151,7 +339,88 @@ def stock():
                     simplified_text = simplify_and_translate(detailed_info)
                     simplified_items.append(simplified_text)
             
-            html_content = f'<h1>Stock Exchange Decisions for {corp_name}</h1>'
+            html_content = f'''
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Stock Exchange Decisions</title>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        background-color: #f4f4f4;
+                        margin: 0;
+                        padding: 0;
+                    }}
+                    header {{
+                        background-color: #333;
+                        color: white;
+                        padding: 10px 0;
+                        text-align: center;
+                    }}
+                    nav {{
+                        margin: 10px;
+                        text-align: center;
+                    }}
+                    nav a {{
+                        margin: 0 15px;
+                        text-decoration: none;
+                        color: #333;
+                        font-weight: bold;
+                    }}
+                    footer {{
+                        background-color: #333;
+                        color: white;
+                        text-align: center;
+                        padding: 10px 0;
+                        position: fixed;
+                        bottom: 0;
+                        width: 100%;
+                    }}
+                    .container {{
+                        max-width: 1200px;
+                        margin: 20px auto;
+                        padding: 20px;
+                        background-color: white;
+                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    }}
+                    h1 {{
+                        color: #333;
+                        text-align: center;
+                    }}
+                    ul {{
+                        list-style-type: none;
+                        padding: 0;
+                    }}
+                    li {{
+                        margin: 10px 0;
+                    }}
+                    li a {{
+                        text-decoration: none;
+                        color: #0066cc;
+                    }}
+                    li a:hover {{
+                        text-decoration: underline;
+                    }}
+                </style>
+            </head>
+            <body>
+                <header>
+                    <h1>Financial Info App</h1>
+                </header>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/search">Public Filings</a>
+                    <a href="/stock">Stock Exchange Decisions</a>
+                    <a href="/preferences">Preferences</a>
+                    <a href="/financial-indicators">Financial Indicators</a>
+                    <a href="/financial-statements">Financial Statements</a>
+                    <a href="/news">News</a>
+                </nav>
+                <div class="container">
+                    <h1>Stock Exchange Decisions for {corp_name}</h1>'''
+            
             if simplified_items:
                 html_content += '<ul>'
                 for item in simplified_items:
@@ -159,26 +428,117 @@ def stock():
                 html_content += '</ul>'
             else:
                 html_content += '<p>No data found or error occurred.</p>'
+            html_content += '''
+                </div>
+                <footer>
+                    <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+                </footer>
+            </body>
+            </html>
+            '''
             return html_content
         else:
             return f"<h1>Company name '{corp_name}' not found.</h1>", 404
 
     html_content = '''
-    <h1>Stock Exchange Decisions</h1>
-    <form method="post">
-        <label for="corp_name">Company Name:</label>
-        <input type="text" id="corp_name" name="corp_name" required>
-        <br>
-        <label for="bgn_de">Start Date (YYYYMMDD):</label>
-        <input type="text" id="bgn_de" name="bgn_de" required>
-        <br>
-        <label for="end_de">End Date (YYYYMMDD):</label>
-        <input type="text" id="end_de" name="end_de" required>
-        <br>
-        <input type="submit" value="Submit">
-    </form>
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Stock Exchange Decisions</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            header {
+                background-color: #333;
+                color: white;
+                padding: 10px 0;
+                text-align: center;
+            }
+            nav {
+                margin: 10px;
+                text-align: center;
+            }
+            nav a {
+                margin: 0 15px;
+                text-decoration: none;
+                color: #333;
+                font-weight: bold;
+            }
+            footer {
+                background-color: #333;
+                color: white;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+            li {
+                margin: 10px 0;
+            }
+            li a {
+                text-decoration: none;
+                color: #0066cc;
+            }
+            li a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Financial Info App</h1>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+            <h1>Stock Exchange Decisions</h1>
+            <form method="POST">
+                <label for="corp_name">Enter Company Name:</label><br>
+                <input type="text" id="corp_name" name="corp_name" required><br>
+                <label for="bgn_de">Start Date (YYYYMMDD):</label><br>
+                <input type="text" id="bgn_de" name="bgn_de" required><br>
+                <label for="end_de">End Date (YYYYMMDD):</label><br>
+                <input type="text" id="end_de" name="end_de" required><br><br>
+                <input type="submit" value="Submit">
+            </form>
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
+    </html>
     '''
     return html_content
+
 
 @app.route('/preferences', methods=['GET', 'POST'])
 def preferences():
@@ -188,7 +548,88 @@ def preferences():
         news_data = fetch_financial_news(query, NEWS_API_KEY)
         articles = news_data.get('articles', [])
         
-        html_content = '<h1>Selected News Articles</h1>'
+        html_content = '''
+        <!DOCTYPE html>
+        <html lang="ko">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Financial Preferences</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                }
+                header {
+                    background-color: #333;
+                    color: white;
+                    padding: 10px 0;
+                    text-align: center;
+                }
+                nav {
+                    margin: 10px;
+                    text-align: center;
+                }
+                nav a {
+                    margin: 0 15px;
+                    text-decoration: none;
+                    color: #333;
+                    font-weight: bold;
+                }
+                footer {
+                    background-color: #333;
+                    color: white;
+                    text-align: center;
+                    padding: 10px 0;
+                    position: fixed;
+                    bottom: 0;
+                    width: 100%;
+                }
+                .container {
+                    max-width: 1200px;
+                    margin: 20px auto;
+                    padding: 20px;
+                    background-color: white;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                }
+                h1 {
+                    color: #333;
+                    text-align: center;
+                }
+                ul {
+                    list-style-type: none;
+                    padding: 0;
+                }
+                li {
+                    margin: 10px 0;
+                }
+                li a {
+                    text-decoration: none;
+                    color: #0066cc;
+                }
+                li a:hover {
+                    text-decoration: underline;
+                }
+            </style>
+        </head>
+        <body>
+            <header>
+                <h1>Financial Info App</h1>
+            </header>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/search">Public Filings</a>
+                <a href="/stock">Stock Exchange Decisions</a>
+                <a href="/preferences">Preferences</a>
+                <a href="/financial-indicators">Financial Indicators</a>
+                <a href="/financial-statements">Financial Statements</a>
+                <a href="/news">News</a>
+            </nav>
+            <div class="container">
+                <h1>Selected News Articles</h1>'''
+
         if articles:
             html_content += '<ul>'
             for article in articles[:10]:  # Limit to 10 articles
@@ -196,85 +637,243 @@ def preferences():
             html_content += '</ul>'
         else:
             html_content += '<p>No news articles found.</p>'
-        
+
+        html_content += '''
+            </div>
+            <footer>
+                <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+            </footer>
+        </body>
+        </html>
+        '''
         return html_content
+
+    html_content = '''
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Financial Preferences</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            header {
+                background-color: #333;
+                color: white;
+                padding: 10px 0;
+                text-align: center;
+            }
+            nav {
+                margin: 10px;
+                text-align: center;
+            }
+            nav a {
+                margin: 0 15px;
+                text-decoration: none;
+                color: #333;
+                font-weight: bold;
+            }
+            footer {
+                background-color: #333;
+                color: white;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Financial Info App</h1>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+            <h1>Select Your Financial Interests</h1>
+            <form method="post">'''
     
-    html_content = '<h1>Select Your Financial Interests</h1>'
-    html_content += '<form method="post">'
     for category in categories:
         html_content += f'<input type="checkbox" name="categories" value="{category}">{category}<br>'
-    html_content += '<input type="submit" value="Submit">'
-    html_content += '</form>'
+    
+    html_content += '''
+            <input type="submit" value="Submit">
+            </form>
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
+    </html>
+    '''
+    
     return html_content
+
 
 @app.route('/financial-indicators', methods=['GET', 'POST'])
 def financial_indicators():
     if request.method == 'POST':
-            corp_names = request.form.get('corp_names').split(', ')
-            bsns_year = request.form.get('bsns_year')
-            report_option = request.form.get('report_option')
-            idx_option = request.form.get('idx_option')
+        corp_names = request.form.get('corp_names').split(', ')
+        bsns_year = request.form.get('bsns_year')
+        report_option = request.form.get('report_option')
+        idx_option = request.form.get('idx_option')
 
-            report_code = {
-                '1': '11013',
-                '2': '11012',
-                '3': '11014',
-                '4': '11011'
-            }.get(report_option)
+        report_code = {
+            '1': '11013',
+            '2': '11012',
+            '3': '11014',
+            '4': '11011'
+        }.get(report_option)
 
-            idx_code = {
-                '1': 'M210000',
-                '2': 'M220000',
-                '3': 'M230000',
-                '4': 'M240000'
-            }.get(idx_option)
+        idx_code = {
+            '1': 'M210000',
+            '2': 'M220000',
+            '3': 'M230000',
+            '4': 'M240000'
+        }.get(idx_option)
 
-            if not report_code or not idx_code:
-                return "잘못된 입력입니다."
+        if not report_code or not idx_code:
+            return "잘못된 입력입니다."
 
-            financial_data = []
-            for name in corp_names:
-                corp_code = get_corp_code(name)
-                if corp_code:
-                    company_data = get_financial_data(corp_code, bsns_year, report_code, idx_code)
-                    for item in company_data:
-                        financial_data.append((item[0], item[1], name))
-                else:
-                    return f"{name}의 고유번호를 찾을 수 없습니다."
+        financial_data = []
+        for name in corp_names:
+            corp_code = get_corp_code(name)
+            if corp_code:
+                company_data = get_financial_data(corp_code, bsns_year, report_code, idx_code)
+                for item in company_data:
+                    financial_data.append((item[0], item[1], name))
+            else:
+                return f"{name}의 고유번호를 찾을 수 없습니다."
 
-            img_base64 = plot_financial_data(financial_data)
-            return render_template('index.html', img_base64=img_base64)
-    return render_template('index.html')
+        img_base64 = plot_financial_data(financial_data)
+        return render_template('index.html', img_base64=img_base64)
 
     html_content = '''
-    <h1>View Financial Indicators</h1>
-    <form method="post">
-        <label for="corp_name">Company Name:</label>
-        <input type="text" id="corp_name" name="corp_name" required>
-        <br>
-        <label for="bsns_year">Business Year (YYYY):</label>
-        <input type="text" id="bsns_year" name="bsns_year" required>
-        <br>
-        <label for="report_option">Report Type:</label>
-        <select id="report_option" name="report_option" required>
-            <option value="1">1분기보고서</option>
-            <option value="2">반기보고서</option>
-            <option value="3">3분기보고서</option>
-            <option value="4">사업보고서</option>
-        </select>
-        <br>
-        <label for="idx_option">Indicator Category:</label>
-        <select id="idx_option" name="idx_option" required>
-            <option value="1">수익성지표</option>
-            <option value="2">안정성지표</option>
-            <option value="3">성장성지표</option>
-            <option value="4">활동성지표</option>
-        </select>
-        <br>
-        <input type="submit" value="Submit">
-    </form>
-    '''
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Financial Indicators</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            header {
+                background-color: #333;
+                color: white;
+                padding: 10px 0;
+                text-align: center;
+            }
+            nav {
+                margin: 10px;
+                text-align: center;
+            }
+            nav a {
+                margin: 0 15px;
+                text-decoration: none;
+                color: #333;
+                font-weight: bold;
+            }
+            footer {
+                background-color: #333;
+                color: white;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+        </style>
+        </head>
+        <body>
+            <header>
+                <h1>Financial Info App</h1>
+            </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+            <h1>View Financial Indicators</h1>
+            <form method="post">
+                <label for="corp_names">Company Names (comma-separated):</label>
+                <input type="text" id="corp_names" name="corp_names" required>
+                <br>
+                <label for="bsns_year">Business Year (YYYY):</label>
+                <input type="text" id="bsns_year" name="bsns_year" required>
+                <br>
+                <label for="report_option">Report Type:</label>
+                <select id="report_option" name="report_option" required>
+                    <option value="1">1분기보고서</option>
+                    <option value="2">반기보고서</option>
+                    <option value="3">3분기보고서</option>
+                    <option value="4">사업보고서</option>
+                </select>
+                <br>
+                <label for="idx_option">Indicator Category:</label>
+                <select id="idx_option" name="idx_option" required>
+                    <option value="1">수익성지표</option>
+                    <option value="2">안정성지표</option>
+                    <option value="3">성장성지표</option>
+                    <option value="4">활동성지표</option>
+                </select>
+                <br>
+                <input type="submit" value="Submit">
+            </form>
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
+    </html>
+        '''
     return html_content
+
+
 
 @app.route('/financial-statements', methods=['GET', 'POST'])
 def financial_statements():
@@ -304,39 +903,192 @@ def financial_statements():
         financial_data = get_financial_statement(dart_api_key, corp_code, bsns_year, reprt_code, fs_div)
         if financial_data:
             simplified_data = simplify_and_translate(str(financial_data))
-            html_content = f'<h1>Financial Statements for {corp_name} ({bsns_year})</h1>'
-            html_content += '<pre>' + simplified_data + '</pre>'
+            html_content = '''
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Financial Statements</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        background-color: #f4f4f4;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    header {
+                        background-color: #333;
+                        color: white;
+                        padding: 10px 0;
+                        text-align: center;
+                    }
+                    nav {
+                        margin: 10px;
+                        text-align: center;
+                    }
+                    nav a {
+                        margin: 0 15px;
+                        text-decoration: none;
+                        color: #333;
+                        font-weight: bold;
+                    }
+                    footer {
+                        background-color: #333;
+                        color: white;
+                        text-align: center;
+                        padding: 10px 0;
+                        position: fixed;
+                        bottom: 0;
+                        width: 100%;
+                    }
+                    .container {
+                        max-width: 1200px;
+                        margin: 20px auto;
+                        padding: 20px;
+                        background-color: white;
+                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    }
+                    h1 {
+                        color: #333;
+                        text-align: center;
+                    }
+                    pre {
+                        background-color: #f4f4f4;
+                        padding: 15px;
+                        border: 1px solid #ddd;
+                        border-radius: 5px;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                    }
+                </style>
+            </head>
+            <body>
+                <header>
+                    <h1>Financial Info App</h1>
+                </header>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/search">Public Filings</a>
+                    <a href="/stock">Stock Exchange Decisions</a>
+                    <a href="/preferences">Preferences</a>
+                    <a href="/financial-indicators">Financial Indicators</a>
+                    <a href="/financial-statements">Financial Statements</a>
+                    <a href="/news">News</a>
+                </nav>
+                <div class="container">
+                    <h1>Financial Statements for {corp_name} ({bsns_year})</h1>
+                    <pre>{simplified_data}</pre>
+                </div>
+                <footer>
+                    <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+                </footer>
+            </body>
+            </html>
+            '''
             return html_content
         else:
             return '<h1>No financial data found or error occurred.</h1>', 404
 
     html_content = '''
-    <h1>View Financial Statements</h1>
-    <form method="post">
-        <label for="corp_name">Company Name:</label>
-        <input type="text" id="corp_name" name="corp_name" required>
-        <br>
-        <label for="bsns_year">Business Year (YYYY):</label>
-        <input type="text" id="bsns_year" name="bsns_year" required>
-        <br>
-        <label for="reprt_choice">Report Type:</label>
-        <select id="reprt_choice" name="reprt_choice" required>
-            <option value="1">1분기보고서</option>
-            <option value="2">반기보고서</option>
-            <option value="3">3분기보고서</option>
-            <option value="4">사업보고서</option>
-        </select>
-        <br>
-        <label for="fs_choice">Financial Statement Type:</label>
-        <select id="fs_choice" name="fs_choice" required>
-            <option value="1">개별재무제표 (OFS)</option>
-            <option value="2">연결재무제표 (CFS)</option>
-        </select>
-        <br>
-        <input type="submit" value="Submit">
-    </form>
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Financial Statements</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            header {
+                background-color: #333;
+                color: white;
+                padding: 10px 0;
+                text-align: center;
+            }
+            nav {
+                margin: 10px;
+                text-align: center;
+            }
+            nav a {
+                margin: 0 15px;
+                text-decoration: none;
+                color: #333;
+                font-weight: bold;
+            }
+            footer {
+                background-color: #333;
+                color: white;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Financial Info App</h1>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+            <h1>View Financial Statements</h1>
+            <form method="post">
+                <label for="corp_name">Company Name:</label>
+                <input type="text" id="corp_name" name="corp_name" required>
+                <br>
+                <label for="bsns_year">Business Year (YYYY):</label>
+                <input type="text" id="bsns_year" name="bsns_year" required>
+                <br>
+                <label for="reprt_choice">Report Type:</label>
+                <select id="reprt_choice" name="reprt_choice" required>
+                    <option value="1">1분기보고서</option>
+                    <option value="2">반기보고서</option>
+                    <option value="3">3분기보고서</option>
+                    <option value="4">사업보고서</option>
+                </select>
+                <br>
+                <label for="fs_choice">Financial Statement Type:</label>
+                <select id="fs_choice" name="fs_choice" required>
+                    <option value="1">개별재무제표 (OFS)</option>
+                    <option value="2">연결재무제표 (CFS)</option>
+                </select>
+                <br>
+                <input type="submit" value="Submit">
+            </form>
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
+    </html>
     '''
     return html_content
+
 
 def fetch_financial_news(query, api_key):
     params = {
@@ -420,12 +1172,7 @@ def plot_financial_data(financial_data):
 
     for i, company in enumerate(df['회사'].unique()):
         company_data = df[df['회사'] == company]
-
-        # Ensure that the length of x and y values match
-        x_values = index[:len(company_data)]  # Match the length of the company_data
-        y_values = company_data['지표값'].values
-
-        plt.bar(x_values + i * bar_width, y_values, bar_width, label=company)
+        plt.bar(index + i * bar_width, company_data['지표값'], bar_width, label=company)
 
     plt.ylabel('지표값')
     plt.xlabel('지표명')
@@ -445,5 +1192,203 @@ def plot_financial_data(financial_data):
     
     return img_base64
 
+def explain_term(term):
+    """
+    금융 용어를 설명합니다.
+    """
+    prompt = f"""
+    다음 금융 용어의 뜻을 설명해주세요. 설명은 쉬운 용어를 사용하고, 전문 용어는 풀어서 설명해주세요:
+
+    {term}
+    """
+    
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that explains financial terms in simple language."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    
+    return response.choices[0].message.content.strip()
+
+def extract_terms(text):
+    """
+    텍스트에서 주요 금융 용어를 추출합니다.
+    """
+    terms = re.findall(r'\b[A-Za-z][A-Za-z0-9]*\b', text)
+    # 실제 용어 목록으로 대체 필요
+    return [term for term in terms if term.lower() in {'stock', 'market', 'bond', 'equity', 'portfolio'}]
+
+def get_full_article(url):
+    """
+    기사의 전체 내용을 가져옵니다.
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # 기사 본문을 추출합니다.
+    article_body = soup.find_all('p')
+    full_text = '\n'.join([p.get_text() for p in article_body])
+    return full_text
+
+def update_articles():
+    global articles_data
+    while True:
+        try:
+            news_data = fetch_financial_news('finance OR stock OR market', NEWS_API_KEY)
+            articles = news_data.get('articles', [])
+
+            new_articles_data = []
+            for article in articles[:5]:  # 처리할 기사 수를 5개로 제한
+                title = article['title']
+                url = article['url']
+
+                # 기사 전체 내용 가져오기
+                full_content = get_full_article(url)
+
+                # 주요 금융 용어 추출
+                terms = extract_terms(full_content)
+                term_explanations = {term: explain_term(term) for term in terms}
+
+                # 제목과 내용을 단순화하고 번역
+                simplified_and_translated = simplify_and_translate(full_content)
+                
+                # 용어 설명 추가
+                explained_content = simplified_and_translated + "\n\n용어 설명:\n" + "\n".join(f"{term}: {explanation}" for term, explanation in term_explanations.items())
+
+                new_articles_data.append({
+                    'title': title,
+                    'url': url,
+                    'content': explained_content
+                })
+
+                print(f"처리 중인 기사: {title}")
+                print("단순화 및 번역된 내용:")
+                print(explained_content)
+                print("-" * 50)
+
+            articles_data = new_articles_data
+            print("기사 업데이트 완료")
+            print("1시간 대기 중...")
+            time.sleep(3600)  # 1시간마다 업데이트
+
+        except Exception as e:
+            print(f"오류 발생: {e}")
+            print("5분 후 재시도...")
+            time.sleep(300)
+
+@app.route('/news')
+def news():
+    template = '''
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>금융 뉴스</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+            }
+            header {
+                background-color: #333;
+                color: white;
+                padding: 10px 0;
+                text-align: center;
+            }
+            nav {
+                margin: 10px;
+                text-align: center;
+            }
+            nav a {
+                margin: 0 15px;
+                text-decoration: none;
+                color: #333;
+                font-weight: bold;
+            }
+            nav a:hover {
+                color: #0066cc;
+            }
+            footer {
+                background-color: #333;
+                color: white;
+                text-align: center;
+                padding: 10px 0;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: white;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+                margin-bottom: 20px;
+            }
+            article {
+                border-bottom: 1px solid #ddd;
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+            h2 {
+                color: #0066cc;
+                margin: 0;
+                font-size: 18px;
+            }
+            a {
+                color: #0066cc;
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+            p {
+                margin: 10px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>금융 뉴스</h1>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+            {% for article in articles %}
+                <article>
+                    <h2><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h2>
+                    <p>{{ article.content }}</p>
+                </article>
+            {% endfor %}
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
+    </html>
+    '''
+    return render_template_string(template, articles=articles_data)
+
 if __name__ == '__main__':
+    update_thread = Thread(target=update_articles)
+    update_thread.start()
     app.run(debug=True)
