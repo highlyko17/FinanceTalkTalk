@@ -108,8 +108,13 @@ def index():
             header {
                 background-color: #333;
                 color: white;
-                padding: 10px 0;
+                padding: 20px 0;
                 text-align: center;
+            }
+            header h2 {
+                margin: 0;
+                font-size: 24px; /* Increase font size for better visibility */
+                font-weight: bold;
             }
             nav {
                 margin: 10px;
@@ -120,6 +125,9 @@ def index():
                 text-decoration: none;
                 color: #333;
                 font-weight: bold;
+            }
+            nav a:hover {
+                color: #0066cc;
             }
             footer {
                 background-color: #333;
@@ -159,7 +167,7 @@ def index():
     </head>
     <body>
         <header>
-            <h1>Financial Info App</h1>
+            <h2>FinanceTalkTalk</h2>
         </header>
         <nav>
             <a href="/">Home</a>
@@ -186,6 +194,7 @@ def index():
         </footer>
     </body>
     </html>
+
     '''
     return html_content
 
@@ -280,7 +289,7 @@ def search():
     </head>
     <body>
         <header>
-            <h1>Financial Info App</h1>
+            <h2>FinanceTalkTalk</h2>
         </header>
         <nav>
             <a href="/">Home</a>
@@ -407,7 +416,7 @@ def stock():
             </head>
             <body>
                 <header>
-                    <h1>Financial Info App</h1>
+                    <h2>FinanceTalkTalk</h2>
                 </header>
                 <nav>
                     <a href="/">Home</a>
@@ -508,7 +517,7 @@ def stock():
     </head>
     <body>
         <header>
-            <h1>Financial Info App</h1>
+            <h2>FinanceTalkTalk</h2>
         </header>
         <nav>
             <a href="/">Home</a>
@@ -522,12 +531,12 @@ def stock():
         <div class="container">
             <h1>Stock Exchange Decisions</h1>
             <form method="POST">
-                <label for="corp_name">Enter Company Name:</label><br>
-                <input type="text" id="corp_name" name="corp_name" required><br>
-                <label for="bgn_de">Start Date (YYYYMMDD):</label><br>
-                <input type="text" id="bgn_de" name="bgn_de" required><br>
-                <label for="end_de">End Date (YYYYMMDD):</label><br>
-                <input type="text" id="end_de" name="end_de" required><br><br>
+                <label for="corp_name">Enter Company Name:</label><br><br>
+                <input type="text" id="corp_name" name="corp_name" required><br><br>
+                <label for="bgn_de">Start Date (YYYYMMDD):</label><br><br>
+                <input type="text" id="bgn_de" name="bgn_de" required><br><br>
+                <label for="end_de">End Date (YYYYMMDD):</label><br><br>
+                <input type="text" id="end_de" name="end_de" required><br><br><br>
                 <input type="submit" value="Submit">
             </form>
         </div>
@@ -616,7 +625,7 @@ def preferences():
         </head>
         <body>
             <header>
-                <h1>Financial Info App</h1>
+                <h2>FinanceTalkTalk</h2>
             </header>
             <nav>
                 <a href="/">Home</a>
@@ -702,7 +711,7 @@ def preferences():
     </head>
     <body>
         <header>
-            <h1>Financial Info App</h1>
+            <h2>FinanceTalkTalk</h2>
         </header>
         <nav>
             <a href="/">Home</a>
@@ -718,7 +727,7 @@ def preferences():
             <form method="post">'''
     
     for category in categories:
-        html_content += f'<input type="checkbox" name="categories" value="{category}">{category}<br>'
+        html_content += f'<input type="checkbox" name="categories" value="{category}">{category}<br><br>'
     
     html_content += '''
             <input type="submit" value="Submit">
@@ -826,7 +835,7 @@ def financial_indicators():
         </head>
         <body>
             <header>
-                <h1>Financial Info App</h1>
+                <h2>FinanceTalkTalk</h2>
             </header>
         <nav>
             <a href="/">Home</a>
@@ -842,10 +851,10 @@ def financial_indicators():
             <form method="post">
                 <label for="corp_names">Company Names (comma-separated):</label>
                 <input type="text" id="corp_names" name="corp_names" required>
-                <br>
+                <br><br>
                 <label for="bsns_year">Business Year (YYYY):</label>
                 <input type="text" id="bsns_year" name="bsns_year" required>
-                <br>
+                <br><br>
                 <label for="report_option">Report Type:</label>
                 <select id="report_option" name="report_option" required>
                     <option value="1">1분기보고서</option>
@@ -853,7 +862,7 @@ def financial_indicators():
                     <option value="3">3분기보고서</option>
                     <option value="4">사업보고서</option>
                 </select>
-                <br>
+                <br><br>
                 <label for="idx_option">Indicator Category:</label>
                 <select id="idx_option" name="idx_option" required>
                     <option value="1">수익성지표</option>
@@ -861,7 +870,7 @@ def financial_indicators():
                     <option value="3">성장성지표</option>
                     <option value="4">활동성지표</option>
                 </select>
-                <br>
+                <br><br>
                 <input type="submit" value="Submit">
             </form>
         </div>
@@ -965,7 +974,7 @@ def financial_statements():
             </head>
             <body>
                 <header>
-                    <h1>Financial Info App</h1>
+                    <h2>FinanceTalkTalk</h2>
                 </header>
                 <nav>
                     <a href="/">Home</a>
@@ -977,7 +986,7 @@ def financial_statements():
                     <a href="/news">News</a>
                 </nav>
                 <div class="container">
-                    <h1>Financial Statements for {corp_name} ({bsns_year})</h1>
+                    <h1>Financial Statements for {corp_name} ({bsns_year})</h1><br>
                     <pre>{simplified_data}</pre>
                 </div>
                 <footer>
@@ -1044,7 +1053,7 @@ def financial_statements():
     </head>
     <body>
         <header>
-            <h1>Financial Info App</h1>
+            <h2>FinanceTalkTalk</h2>
         </header>
         <nav>
             <a href="/">Home</a>
@@ -1060,10 +1069,10 @@ def financial_statements():
             <form method="post">
                 <label for="corp_name">Company Name:</label>
                 <input type="text" id="corp_name" name="corp_name" required>
-                <br>
+                <br><br>
                 <label for="bsns_year">Business Year (YYYY):</label>
                 <input type="text" id="bsns_year" name="bsns_year" required>
-                <br>
+                <br><br>
                 <label for="reprt_choice">Report Type:</label>
                 <select id="reprt_choice" name="reprt_choice" required>
                     <option value="1">1분기보고서</option>
@@ -1071,13 +1080,13 @@ def financial_statements():
                     <option value="3">3분기보고서</option>
                     <option value="4">사업보고서</option>
                 </select>
-                <br>
+                <br><br>
                 <label for="fs_choice">Financial Statement Type:</label>
                 <select id="fs_choice" name="fs_choice" required>
                     <option value="1">개별재무제표 (OFS)</option>
                     <option value="2">연결재무제표 (CFS)</option>
                 </select>
-                <br>
+                <br><br>
                 <input type="submit" value="Submit">
             </form>
         </div>
@@ -1358,32 +1367,32 @@ def news():
                 margin: 10px 0;
             }
         </style>
-    </head>
-    <body>
-        <header>
-            <h1>금융 뉴스</h1>
-        </header>
-        <nav>
-            <a href="/">Home</a>
-            <a href="/search">Public Filings</a>
-            <a href="/stock">Stock Exchange Decisions</a>
-            <a href="/preferences">Preferences</a>
-            <a href="/financial-indicators">Financial Indicators</a>
-            <a href="/financial-statements">Financial Statements</a>
-            <a href="/news">News</a>
-        </nav>
-        <div class="container">
-            {% for article in articles %}
-                <article>
-                    <h2><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h2>
-                    <p>{{ article.content }}</p>
-                </article>
-            {% endfor %}
-        </div>
-        <footer>
-            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
-        </footer>
-    </body>
+        </head>
+        <body>
+            <header>
+                <h2>FinanceTalkTalk</h2>
+            </header>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/search">Public Filings</a>
+                <a href="/stock">Stock Exchange Decisions</a>
+                <a href="/preferences">Preferences</a>
+                <a href="/financial-indicators">Financial Indicators</a>
+                <a href="/financial-statements">Financial Statements</a>
+                <a href="/news">News</a>
+            </nav>
+            <div class="container">
+                {% for article in articles %}
+                    <article>
+                        <h2><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h2>
+                        <p>{{ article.content }}</p>
+                    </article>
+                {% endfor %}
+            </div>
+            <footer>
+                <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+            </footer>
+        </body>
     </html>
     '''
     return render_template_string(template, articles=articles_data)
