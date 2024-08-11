@@ -8,36 +8,9 @@ bp = Blueprint('news', __name__)
 
 @bp.route('/news')
 def news():
-    # Fetching real-time financial news
-    news_data = fetch_financial_news('financial')
-    articles = news_data.get('articles', [])
-
-    # Prepare articles with explanations and summaries
-    processed_articles = []
-    for article in articles:
-        title = article.get('title', 'No Title')
-        url = article.get('url', '#')
-        content = article.get('content', '')
-
-        # Extract and explain terms
-        terms = extract_terms(content)
-        term_explanations = {term: explain_term(term) for term in terms}
-        
-        # Simplify and translate content
-        simplified_content = simplify_and_translate(content)
-        
-        # Summarize content
-        summary = summarize_text(content)
-
-        processed_articles.append({
-            'title': title,
-            'url': url,
-            'summary': summary,
-            'simplified_content': simplified_content,
-            'term_explanations': term_explanations
-        })
-
-    template = '''
+    articles = fetch_financial_news('financial')
+    
+    html_content = '''
     <!DOCTYPE html>
     <html lang="ko">
     <head>
@@ -111,59 +84,46 @@ def news():
             p {
                 margin: 10px 0;
             }
-            .summary {
-                font-style: italic;
-                color: #666;
-            }
-            .terms {
-                margin-top: 10px;
-                padding-top: 10px;
-                border-top: 1px solid #ddd;
-            }
-            .term {
-                margin-bottom: 10px;
-            }
         </style>
-        </head>
-        <body>
-            <header>
-                <h2>FinanceTalkTalk</h2>
-            </header>
-            <nav>
-                <a href="/">Home</a>
-                <a href="/search">Public Filings</a>
-                <a href="/stock">Stock Exchange Decisions</a>
-                <a href="/preferences">Preferences</a>
-                <a href="/financial-indicators">Financial Indicators</a>
-                <a href="/financial-statements">Financial Statements</a>
-                <a href="/news">News</a>
-            </nav>
-            <div class="container">
-                <h1>Financial News</h1>
-                {% for article in articles %}
-                    <article>
-                        <h2><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h2>
-                        <p><strong>Summary:</strong> <span class="summary">{{ article.summary }}</span></p>
-                        <p><strong>Simplified Content:</strong> {{ article.simplified_content }}</p>
-                        <div class="terms">
-                            <h3>Financial Terms Explained</h3>
-                            {% for term, explanation in article.term_explanations.items() %}
-                                <div class="term">
-                                    <strong>{{ term }}:</strong> {{ explanation }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </article>
-                {% endfor %}
-            </div>
-            <footer>
-                <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
-            </footer>
-        </body>
+    </head>
+    <body>
+        <header>
+            <h2>FinanceTalkTalk</h2>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/search">Public Filings</a>
+            <a href="/stock">Stock Exchange Decisions</a>
+            <a href="/preferences">Preferences</a>
+            <a href="/financial-indicators">Financial Indicators</a>
+            <a href="/financial-statements">Financial Statements</a>
+            <a href="/news">News</a>
+        </nav>
+        <div class="container">
+    '''
+    
+    if articles and 'articles' in articles:
+        for article in articles['articles']:
+            html_content += f'''
+            <article>
+                <h2><a href="{article['url']}" target="_blank">{article['title']}</a></h2>
+                <p>{article['description']}</p>
+            </article>
+            '''
+    else:
+        html_content += '<p>현재 표시할 뉴스가 없습니다. 잠시 후 다시 시도해 주세요.</p>'
+    
+    html_content += '''
+        </div>
+        <footer>
+            <p>&copy; 2024 Financial Info App. All Rights Reserved.</p>
+        </footer>
+    </body>
     </html>
     '''
     
-    return render_template_string(template, articles=processed_articles)
+    return html_content
+
 
 
 @bp.route('/preferences', methods=['GET', 'POST'])

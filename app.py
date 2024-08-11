@@ -18,5 +18,5 @@ app.register_blueprint(financial_routes.bp)
 app.register_blueprint(news_routes.bp)
 
 if __name__ == '__main__':
-    start_news_update_thread()
+    #start_news_update_thread()
     app.run(debug=True)
