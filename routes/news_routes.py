@@ -1,14 +1,16 @@
 from flask import Blueprint, render_template_string, request
-from services.news_service import articles_data
-from api.news_api import fetch_financial_news
-from config import NEWS_API_KEY, CATEGORIES
-from utils.data_processing import simplify_and_translate, explain_term, extract_terms, summarize_text
+from services.news_service import articles_data, start_news_update_thread
+from utils.data_processing import simplify_and_translate
 
 bp = Blueprint('news', __name__)
 
+# 뉴스 업데이트 스레드 시작
+start_news_update_thread()
+
 @bp.route('/news')
 def news():
-    articles = fetch_financial_news('financial')
+    # articles_data에서 뉴스 기사 가져오기
+    articles = articles_data[:5]  # 최대 5개의 기사만 가져오기
     
     html_content = '''
     <!DOCTYPE html>
@@ -102,12 +104,14 @@ def news():
         <div class="container">
     '''
     
-    if articles and 'articles' in articles:
-        for article in articles['articles']:
+    if articles:
+        for article in articles:
+            simplified_content = simplify_and_translate(article['content'])
+
             html_content += f'''
             <article>
                 <h2><a href="{article['url']}" target="_blank">{article['title']}</a></h2>
-                <p>{article['description']}</p>
+                <p>{simplified_content}</p>
             </article>
             '''
     else:
@@ -131,8 +135,10 @@ def preferences():
     if request.method == 'POST':
         selected_categories = request.form.getlist('categories')
         query = ' OR '.join(selected_categories)
-        news_data = fetch_financial_news(query)
-        articles = news_data.get('articles', [])
+
+        # articles_data에서 해당 카테고리의 뉴스 기사 필터링
+        filtered_articles = [article for article in articles_data if any(category in query for category in selected_categories)]
+        articles = filtered_articles[:5]  # 최대 5개의 기사만 가져오기
         
         html_content = '''
         <!DOCTYPE html>
@@ -218,8 +224,9 @@ def preferences():
 
         if articles:
             html_content += '<ul>'
-            for article in articles[:10]:  # Limit to 10 articles
-                html_content += f'<li><a href="{article["url"]}">{article["title"]}</a></li>'
+            for article in articles:
+                simplified_content = simplify_and_translate(article['content'])
+                html_content += f'<li><a href="{article["url"]}" target="_blank">{article["title"]}</a><p>{simplified_content}</p></li>'
             html_content += '</ul>'
         else:
             html_content += '<p>No news articles found.</p>'
@@ -300,14 +307,15 @@ def preferences():
             <a href="/news">News</a>
         </nav>
         <div class="container">
-            <h1>Select Your Financial Interests</h1>
-            <form method="post">'''
-    
-    for category in CATEGORIES:
-        html_content += f'<input type="checkbox" name="categories" value="{category}">{category}<br><br>'
-    
-    html_content += '''
-            <input type="submit" value="Submit">
+            <h1>Financial News Categories</h1>
+            <form action="/preferences" method="POST">
+                <label><input type="checkbox" name="categories" value="economy"> Economy</label><br>
+                <label><input type="checkbox" name="categories" value="business"> Business</label><br>
+                <label><input type="checkbox" name="categories" value="markets"> Markets</label><br>
+                <label><input type="checkbox" name="categories" value="technology"> Technology</label><br>
+                <label><input type="checkbox" name="categories" value="investment"> Investment</label><br>
+                <label><input type="checkbox" name="categories" value="personal-finance"> Personal Finance</label><br>
+                <button type="submit">Submit</button>
             </form>
         </div>
         <footer>
@@ -316,5 +324,5 @@ def preferences():
     </body>
     </html>
     '''
-    
+
     return html_content
